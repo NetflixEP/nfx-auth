@@ -1,20 +1,22 @@
-using Microsoft.EntityFrameworkCore;
-using nfx_auth.Data;
-using nfx_auth.Services;
+using nfx_auth;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = Host.CreateDefaultBuilder(args)
+    .ConfigureAppConfiguration((hostingContext, config) =>
+    {
+        config
+            .SetBasePath(hostingContext.HostingEnvironment.ContentRootPath)
+            .AddJsonFile("appsettings.json", true, true)
+            .AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", true, true)
+            .AddEnvironmentVariables();
 
+        if (hostingContext.HostingEnvironment.EnvironmentName == "Development")
+        {
+            config.AddJsonFile("appsettings.Local.json", true, true);
+        }
+    })
+    .ConfigureWebHostDefaults(webBuilder =>
+    {
+        webBuilder.UseStartup<Startup>();
+    });
 
-
-// Add services to the container.
-builder.Services.AddControllers();
-builder.Services.AddGrpc();
-
-builder.Services.AddDbContext<AuthDbContext>(opt => opt.UseNpgsql("Host=localhost;Port=8006;Database=db;Username=root;Password=root"));
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-app.MapGet("/", () => "Communication with gRPC endpoints must be made through a gRPC client. To learn how to create a client, visit: https://go.microsoft.com/fwlink/?linkid=2086909");
-
-app.Run();
+builder.Build().Run();

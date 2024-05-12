@@ -7,10 +7,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
 using nfx_auth.Utils;
-using MongoDB.Driver;
 using System;
+using Microsoft.OpenApi.Models;
+using Microsoft.EntityFrameworkCore;
+using HealthChecks.UI.Client;
 
 namespace nfx_auth;
 public class Startup(IConfiguration configuration)
@@ -23,22 +24,17 @@ public class Startup(IConfiguration configuration)
         services.AddControllers();
         services.AddJwt(Configuration);
         services.AddTransient<IEncryptor, Encryptor>();
-        services.AddSingleton<IUserRepository>(sp =>
-          new UserRepository(sp.GetService<IMongoDatabase>() ?? throw new Exception("IMongoDatabase not found"))
-        );
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "User", Version = "v1" });
         });
-        services.AddHealthChecks()
-            .AddMongoDb(
-                mongodbConnectionString: (
-                    Configuration.GetSection("mongo").Get<MongoOptions>()
-                    ?? throw new Exception("mongo configuration section not found")
-                ).ConnectionString,
-                name: "mongo",
-                failureStatus: HealthStatus.Unhealthy
-            );
+        services.AddDbContext<AuthDbContext>(o =>
+            o.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"))
+        );
+        services.AddHealthChecks().AddDbContextCheck<AuthDbContext>(
+            name: "postgresql",
+            failureStatus: HealthStatus.Unhealthy
+        );
         services.AddHealthChecksUI().AddInMemoryStorage();
     }
 

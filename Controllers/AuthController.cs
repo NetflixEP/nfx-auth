@@ -50,6 +50,7 @@ public class IdentityController(AuthDbContext dbContext, IJwtBuilder jwtBuilder,
         user.SetPassword(user.Password, encryptor);
         await dbContext.AddAsync(user);
         await dbContext.SaveChangesAsync();
+
         return Ok();
     }
 }
