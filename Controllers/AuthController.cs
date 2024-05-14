@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using nfx_auth.Data;
+using nfx_auth.Dtos;
 using nfx_auth.Models;
 using nfx_auth.Utils;
 
@@ -8,47 +9,49 @@ namespace nfx_auth.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class IdentityController(AuthDbContext dbContext, IJwtBuilder jwtBuilder, IEncryptor encryptor) : ControllerBase
+public class AuthController(AuthDbContext dbContext, IJwtBuilder jwtBuilder, IEncryptor encryptor) : ControllerBase
 {
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] User user, [FromQuery(Name = "d")] string destination = "frontend")
+    public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
     {
-        var u = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
 
-        if (u == null)
+        if (user is null)
         {
             return NotFound("User not found.");
         }
 
-        if (destination == "backend" && !u.IsAdmin)
+        if (user.PasswordHash != encryptor.GetHash(loginDto.Password, user.Salt))
         {
             return Unauthorized("Could not authenticate user.");
         }
 
-        var isValid = u.ValidatePassword(user.Password, encryptor);
-
-        if (!isValid)
-        {
-            return Unauthorized("Could not authenticate user.");
-        }
-
-        var token = jwtBuilder.GetToken(u.Email, u.IsAdmin);
+        var token = jwtBuilder.GetToken(user.Email, user.IsAdmin);
 
         return Ok(token);
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] User user)
+    public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
     {
-        var u = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Email == registerDto.Email);
 
-        if (u != null)
+        if (user is not null)
         {
             return Unauthorized("User already exists.");
         }
 
-        user.SetPassword(user.Password, encryptor);
-        await dbContext.AddAsync(user);
+        var salt = encryptor.GetSalt();
+
+        var newUser = new User
+        {
+            Email = registerDto.Email,
+            Salt = salt,
+            PasswordHash = encryptor.GetHash(registerDto.Password, salt),
+            IsAdmin = registerDto.IsAdmin
+        };
+
+        await dbContext.Users.AddAsync(newUser);
         await dbContext.SaveChangesAsync();
 
         return Ok();

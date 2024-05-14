@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "27001:5432"
+    environment:
+      POSTGRES_DB: "auth"
+      POSTGRES_USER: "root"
+      POSTGRES_PASSWORD: "root"
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    ports:
+      - 44397:80

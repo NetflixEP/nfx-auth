@@ -28,6 +28,7 @@ public class Startup(IConfiguration configuration)
         {
             c.SwaggerDoc("v1", new OpenApiInfo { Title = "User", Version = "v1" });
         });
+        
         services.AddDbContext<AuthDbContext>(o =>
             o.UseNpgsql(Configuration.GetConnectionString("DefaultConnection"))
         );
@@ -41,6 +42,11 @@ public class Startup(IConfiguration configuration)
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        using (var scope = app.ApplicationServices.GetRequiredService<IServiceScopeFactory>().CreateScope())
+        {
+            scope.ServiceProvider.GetService<AuthDbContext>()?.Database.Migrate();
+        }
+
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using nfx_auth;
 
 var builder = Host.CreateDefaultBuilder(args)
@@ -20,3 +21,4 @@ var builder = Host.CreateDefaultBuilder(args)
     });
 
 builder.Build().Run();
+
